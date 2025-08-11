@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Navigation from '@/components/Navigation';
 import FileUpload from '@/components/FileUpload';
 import MemorizeWords from '@/components/MemorizeWords';

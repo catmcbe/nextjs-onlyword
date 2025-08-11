@@ -18,10 +18,10 @@ export async function POST(request: NextRequest) {
     }
 
     // 准备单词和释义的映射
-    const wordMeanings = words.map((word, index) => ({
-      word,
-      meaning: meanings[index] || '无释义'
-    }));
+    // const wordMeanings = words.map((word, index) => ({
+    //   word,
+    //   meaning: meanings[index] || '无释义'
+    // }));
 
     // 构建提示词
     const wordList = words.join(', ');
