@@ -99,7 +99,7 @@ export default function ArticleGeneration({ words, onBack }: ArticleGenerationPr
 
   // 将函数添加到全局作用域，供HTML中的onclick使用
   if (typeof window !== 'undefined') {
-    (window as Record<string, any>).handleWordClick = handleWordClick;
+    (window as unknown as { handleWordClick: typeof handleWordClick }).handleWordClick = handleWordClick;
   }
 
   if (!isStarted) {

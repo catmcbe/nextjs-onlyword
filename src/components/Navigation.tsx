@@ -1,6 +1,4 @@
 'use client';
-
-import { useState } from 'react';
 import { BookOpen, Pen, FileText } from 'lucide-react';
 
 interface NavigationProps {

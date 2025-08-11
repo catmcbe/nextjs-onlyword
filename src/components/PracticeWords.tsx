@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Check, X, RotateCcw, SkipForward } from 'lucide-react';
+import { Check, RotateCcw, BookOpen } from 'lucide-react';
 
 interface Word {
   word: string;
