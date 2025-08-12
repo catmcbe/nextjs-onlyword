@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   experimental: {
     // 优化性能
     optimizePackageImports: ['lucide-react']
+  },
+  // 环境变量配置
+  env: {
+    NEXT_PUBLIC_ADMIN_USER: process.env.ADMIN_USER,
+    NEXT_PUBLIC_ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    NEXT_PUBLIC_EXTRA_ADMIN_USER: process.env.EXTRA_ADMIN_USER,
+    NEXT_PUBLIC_EXTRA_ADMIN_PASSWORD: process.env.EXTRA_ADMIN_PASSWORD,
   }
 };
 

@@ -11,8 +11,8 @@
 - 支持登出功能
 
 **登录凭据：**
-- 用户名：adminfishcat9898
-- 密码：xx1465120
+- 主管理员：用户名：adminfishcat9898，密码：xx1465120
+- 额外管理员：用户名：auser，密码：apassword
 
 ### 🎯 三种学习模式
 
@@ -193,10 +193,46 @@ AI_MODEL=Qwen/Qwen3-8B
 ### 其他平台部署
 项目是标准的 Next.js 应用，可以部署到任何支持 Node.js 的平台：
 
-- **Netlify**: 支持 Next.js
-- **Railway**: 全栈应用部署
-- **Heroku**: Node.js 应用部署
-- **自建服务器**: 使用 `npm run build` 和 `npm start`
+#### Netlify 部署
+1. **推送代码到GitHub**
+   ```bash
+   git add .
+   git commit -m "Initial commit"
+   git push origin main
+   ```
+
+2. **连接Netlify**
+   - 登录 Netlify (netlify.com)
+   - 点击 "New site from Git"
+   - 选择您的 GitHub 仓库
+   - 点击 "Deploy site"
+
+3. **配置环境变量**
+   - 在项目设置中找到 "Environment variables"
+   - 添加以下环境变量：
+     ```
+     AI_API_URL = https://api.siliconflow.cn/v1
+     AI_API_KEY = sk-cfphdryhsemmjylqzrertjgdcvkymukqkkngiurwmapovzqp
+     AI_MODEL = Qwen/Qwen3-8B
+     ADMIN_USER = adminfishcat9898
+     ADMIN_PASSWORD = xx1465120
+     EXTRA_ADMIN_USER = auser
+     EXTRA_ADMIN_PASSWORD = apassword
+     API_TIMEOUT = 60
+     ```
+
+4. **部署**
+   - Netlify 会自动检测 Next.js 项目并使用 `netlify.toml` 配置
+   - 部署完成后，您会得到一个访问链接
+
+#### Railway 部署
+- 全栈应用部署，支持环境变量配置
+
+#### Heroku 部署
+- Node.js 应用部署，需要配置构建包
+
+#### 自建服务器
+- 使用 `npm run build` 和 `npm start`
 
 ## 安全说明
 

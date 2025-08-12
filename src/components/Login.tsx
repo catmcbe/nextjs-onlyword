@@ -21,7 +21,16 @@ export default function Login({ onLogin }: LoginProps) {
 
     // 模拟登录验证延迟
     setTimeout(() => {
-      if (username === 'adminfishcat9898' && password === 'xx1465120') {
+      const adminUser = process.env.NEXT_PUBLIC_ADMIN_USER || 'adminfishcat9898';
+      const adminPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'xx1465120';
+      const extraAdminUser = process.env.NEXT_PUBLIC_EXTRA_ADMIN_USER || 'auser';
+      const extraAdminPassword = process.env.NEXT_PUBLIC_EXTRA_ADMIN_PASSWORD || 'apassword';
+
+      // 检查主管理员账户或额外管理员账户
+      if (
+        (username === adminUser && password === adminPassword) ||
+        (username === extraAdminUser && password === extraAdminPassword)
+      ) {
         onLogin(true);
       } else {
         setError('用户名或密码错误');
