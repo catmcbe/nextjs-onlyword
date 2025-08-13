@@ -44,92 +44,25 @@ export default function ArticleGeneration({ words, onBack }: ArticleGenerationPr
     setIsGenerating(true);
 
     try {
-      // 直接调用AI API，避免Serverless Function超时
-      const apiUrl = process.env.NEXT_PUBLIC_AI_API_URL;
-      const apiKey = process.env.NEXT_PUBLIC_AI_API_KEY;
-      const model = process.env.NEXT_PUBLIC_AI_MODEL || 'Qwen/Qwen3-8B';
-
-      if (!apiUrl || !apiKey) {
-        throw new Error('AI API配置未正确设置');
-      }
-
-      // 构建提示词
-      const wordList = wordsForArticle.map(w => w.word).join(', ');
-      const prompt = `请写一篇包含以下单词的英文短文：${wordList}
-
-要求：
-1. 文章长度在200-300字之间
-2. 自然流畅地包含所有指定单词
-3. 主题可以是日常生活、学习、科技等任何合适的话题
-4. 文章要有逻辑性和连贯性
-
-请按照以下JSON格式返回：
-{
-  "article": "英文文章内容...",
-  "translation": "中文翻译..."
-}
-
-请确保返回的是有效的JSON格式。`;
-
-      const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
+      // 调用服务器端API路由
+      const response = await fetch('/api/generate-article', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: model,
-          messages: [
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 1000,
+          words: wordsForArticle.map(w => w.word),
+          meanings: wordsForArticle.map(w => w.meaning)
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`AI API请求失败: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || '生成文章失败');
       }
 
-      const aiResponse = await response.json();
-      const content = aiResponse.choices?.[0]?.message?.content;
-
-      if (!content) {
-        throw new Error('AI返回内容为空');
-      }
-
-      // 尝试解析JSON响应
-      let articleData;
-      try {
-        // 提取JSON部分（如果AI返回了额外的文本）
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          articleData = JSON.parse(jsonMatch[0]);
-        } else {
-          // 如果没有找到JSON，尝试解析整个响应
-          articleData = JSON.parse(content);
-        }
-      } catch (parseError) {
-        console.error('解析AI响应失败:', parseError);
-        // 如果JSON解析失败，尝试从文本中提取文章和翻译
-        const articleMatch = content.match(/article["\s]*:["\s]*([\s\S]*?)(?="translation"|$)/i);
-        const translationMatch = content.match(/translation["\s]*:["\s]*([\s\S]*?)$/i);
-        
-        articleData = {
-          article: articleMatch ? articleMatch[1].replace(/^["\s]+|["\s]+$/g, '') : content,
-          translation: translationMatch ? translationMatch[1].replace(/^["\s]+|["\s]+$/g, '') : '翻译提取失败'
-        };
-      }
-
-      // 验证返回的数据结构
-      if (!articleData.article || !articleData.translation) {
-        throw new Error('AI返回的数据格式不正确');
-      }
-
-      setArticle(articleData);
+      const data = await response.json();
+      setArticle(data);
     } catch (error) {
       console.error('生成文章时出错:', error);
       alert(error instanceof Error ? error.message : '生成文章失败，请重试');
