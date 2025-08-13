@@ -44,26 +44,95 @@ export default function ArticleGeneration({ words, onBack }: ArticleGenerationPr
     setIsGenerating(true);
 
     try {
-      const response = await fetch('/api/generate-article', {
+      // 直接调用AI API，避免Serverless Function超时
+      const apiUrl = process.env.NEXT_PUBLIC_AI_API_URL;
+      const apiKey = process.env.NEXT_PUBLIC_AI_API_KEY;
+      const model = process.env.NEXT_PUBLIC_AI_MODEL || 'Qwen/Qwen3-8B';
+
+      if (!apiUrl || !apiKey) {
+        throw new Error('AI API配置未正确设置');
+      }
+
+      // 构建提示词
+      const wordList = wordsForArticle.map(w => w.word).join(', ');
+      const prompt = `请写一篇包含以下单词的英文短文：${wordList}
+
+要求：
+1. 文章长度在200-300字之间
+2. 自然流畅地包含所有指定单词
+3. 主题可以是日常生活、学习、科技等任何合适的话题
+4. 文章要有逻辑性和连贯性
+
+请按照以下JSON格式返回：
+{
+  "article": "英文文章内容...",
+  "translation": "中文翻译..."
+}
+
+请确保返回的是有效的JSON格式。`;
+
+      const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          words: wordsForArticle.map(w => w.word),
-          meanings: wordsForArticle.map(w => w.meaning)
+          model: model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt,
+            },
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('生成文章失败');
+        throw new Error(`AI API请求失败: ${response.status}`);
       }
 
-      const data = await response.json();
-      setArticle(data);
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content;
+
+      if (!content) {
+        throw new Error('AI返回内容为空');
+      }
+
+      // 尝试解析JSON响应
+      let articleData;
+      try {
+        // 提取JSON部分（如果AI返回了额外的文本）
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          articleData = JSON.parse(jsonMatch[0]);
+        } else {
+          // 如果没有找到JSON，尝试解析整个响应
+          articleData = JSON.parse(content);
+        }
+      } catch (parseError) {
+        console.error('解析AI响应失败:', parseError);
+        // 如果JSON解析失败，尝试从文本中提取文章和翻译
+        const articleMatch = content.match(/article["\s]*:["\s]*([\s\S]*?)(?="translation"|$)/i);
+        const translationMatch = content.match(/translation["\s]*:["\s]*([\s\S]*?)$/i);
+        
+        articleData = {
+          article: articleMatch ? articleMatch[1].replace(/^["\s]+|["\s]+$/g, '') : content,
+          translation: translationMatch ? translationMatch[1].replace(/^["\s]+|["\s]+$/g, '') : '翻译提取失败'
+        };
+      }
+
+      // 验证返回的数据结构
+      if (!articleData.article || !articleData.translation) {
+        throw new Error('AI返回的数据格式不正确');
+      }
+
+      setArticle(articleData);
     } catch (error) {
       console.error('生成文章时出错:', error);
-      alert('生成文章失败，请重试');
+      alert(error instanceof Error ? error.message : '生成文章失败，请重试');
     } finally {
       setIsGenerating(false);
     }
@@ -77,30 +146,38 @@ export default function ArticleGeneration({ words, onBack }: ArticleGenerationPr
   };
 
   const renderArticleWithHighlights = (text: string) => {
-    if (!selectedWords.length) return { __html: text };
+    if (!selectedWords.length) return text;
 
-    let highlightedText = text;
+    const words = text.split(/(\s+|[.,!?;:])/);
     
-    selectedWords.forEach(wordObj => {
-      const word = wordObj.word;
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      highlightedText = highlightedText.replace(regex, (match) => {
-        const isHighlighted = highlightedWord === word;
-        return `<span class="relative inline-block cursor-pointer border-b-2 border-blue-400 hover:border-blue-600 transition-colors ${isHighlighted ? 'bg-blue-100 px-1 rounded' : ''}" data-word="${word}" onclick="handleWordClick('${word}')">${match}</span>`;
-      });
-    });
+    return words.map((word, index) => {
+      const trimmedWord = word.trim();
+      if (!trimmedWord) return word;
 
-    return { __html: highlightedText };
+      const matchedWordObj = selectedWords.find(w =>
+        w.word.toLowerCase() === trimmedWord.toLowerCase()
+      );
+
+      if (matchedWordObj) {
+        const isHighlighted = highlightedWord === matchedWordObj.word;
+        return (
+          <span
+            key={index}
+            className={`relative inline-block cursor-pointer border-b-2 border-blue-400 hover:border-blue-600 transition-colors ${isHighlighted ? 'bg-blue-100 px-1 rounded' : ''}`}
+            onClick={() => handleWordClick(matchedWordObj.word)}
+          >
+            {word}
+          </span>
+        );
+      }
+
+      return word;
+    });
   };
 
   const handleWordClick = (word: string) => {
     setHighlightedWord(highlightedWord === word ? null : word);
   };
-
-  // 将函数添加到全局作用域，供HTML中的onclick使用
-  if (typeof window !== 'undefined') {
-    (window as unknown as { handleWordClick: typeof handleWordClick }).handleWordClick = handleWordClick;
-  }
 
   if (!isStarted) {
     return (
@@ -205,10 +282,9 @@ export default function ArticleGeneration({ words, onBack }: ArticleGenerationPr
               <FileText className="w-5 h-5 mr-2" />
               英文文章
             </h3>
-            <div
-              className="prose prose-lg max-w-none p-6 bg-gray-50 rounded-lg leading-relaxed text-gray-800"
-              dangerouslySetInnerHTML={renderArticleWithHighlights(article.article) as { __html: string }}
-            />
+            <div className="prose prose-lg max-w-none p-6 bg-gray-50 rounded-lg leading-relaxed text-gray-800">
+              {renderArticleWithHighlights(article.article)}
+            </div>
           </div>
 
           <div>

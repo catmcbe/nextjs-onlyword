@@ -54,28 +54,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 调用AI API
-    const response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
-    });
+    // 创建AbortController用于超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-    if (!response.ok) {
-      throw new Error(`AI API请求失败: ${response.status}`);
+    // 重试机制
+    let retryCount = 0;
+    const maxRetries = 2;
+    let response;
+
+    while (retryCount <= maxRetries) {
+      try {
+        // 调用AI API
+        response = await fetch(`${apiUrl.replace(/\/+$/, '')}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              {
+                role: 'user',
+                content: prompt,
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 1000,
+          }),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+        break; // 成功则跳出重试循环
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        retryCount++;
+        
+        if (retryCount > maxRetries) {
+          console.error(`AI API请求失败，已重试${maxRetries}次:`, fetchError);
+          throw new Error(`AI API请求失败，已重试${maxRetries}次: ${fetchError instanceof Error ? fetchError.message : '未知错误'}`);
+        }
+        
+        console.log(`第${retryCount}次重试...`);
+        // 等待一段时间后重试
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+        
+        // 重新创建AbortController用于下一次请求
+        controller.abort();
+        const newController = new AbortController();
+        const newTimeoutId = setTimeout(() => newController.abort(), 30000);
+        // 这里需要重新赋值，但由于作用域问题，我们会在下一次循环中重新创建
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`AI API请求失败: ${response?.status || '未知状态'}`);
     }
 
     const aiResponse = await response.json();

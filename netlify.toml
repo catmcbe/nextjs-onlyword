@@ -10,3 +10,5 @@
 
 [functions]
   directory = "netlify/functions"
+  [functions.generate-article]
+    timeout = 10

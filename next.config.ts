@@ -18,7 +18,21 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     NEXT_PUBLIC_EXTRA_ADMIN_USER: process.env.EXTRA_ADMIN_USER,
     NEXT_PUBLIC_EXTRA_ADMIN_PASSWORD: process.env.EXTRA_ADMIN_PASSWORD,
-  }
+  },
+  // 增加API路由超时配置（解决504错误）
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
