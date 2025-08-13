@@ -48,11 +48,18 @@ export async function POST(request: NextRequest) {
 
     // 检查必要的环境变量
     if (!apiUrl || !apiKey) {
+      console.error('环境变量配置错误:', {
+        apiUrl: apiUrl ? '已设置' : '未设置',
+        apiKey: apiKey ? '已设置' : '未设置',
+        model: model
+      });
       return NextResponse.json(
         { error: 'API配置未正确设置，请检查环境变量' },
         { status: 500 }
       );
     }
+
+    console.log('开始调用AI API:', { apiUrl, model });
 
     // 创建AbortController用于超时控制
     const controller = new AbortController();
@@ -110,13 +117,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (!response || !response.ok) {
-      throw new Error(`AI API请求失败: ${response?.status || '未知状态'}`);
+      const errorText = await response?.text();
+      console.error('AI API请求失败:', {
+        status: response?.status,
+        statusText: response?.statusText,
+        errorText: errorText
+      });
+      throw new Error(`AI API请求失败: ${response?.status || '未知状态'} - ${errorText || '无错误详情'}`);
     }
 
     const aiResponse = await response.json();
+    console.log('AI API响应成功:', {
+      id: aiResponse.id,
+      model: aiResponse.model,
+      usage: aiResponse.usage
+    });
+    
     const content = aiResponse.choices?.[0]?.message?.content;
 
     if (!content) {
+      console.error('AI返回内容为空:', aiResponse);
       throw new Error('AI返回内容为空');
     }
 
@@ -151,9 +171,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(articleData);
 
   } catch (error) {
-    console.error('生成文章时出错:', error);
+    console.error('生成文章时出错:', {
+      error: error instanceof Error ? error.message : '未知错误',
+      stack: error instanceof Error ? error.stack : undefined,
+      errorObject: error
+    });
     return NextResponse.json(
-      { error: '生成文章失败，请重试' },
+      {
+        error: '生成文章失败，请重试',
+        details: error instanceof Error ? error.message : '未知错误'
+      },
       { status: 500 }
     );
   }
